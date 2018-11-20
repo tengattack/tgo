@@ -37,24 +37,24 @@ var (
 	LogAccess *logrus.Logger
 	// LogError is log error log
 	LogError *logrus.Logger
-	// DefaultConfig is default configuration
-	DefaultConfig *Config
 	// conf package config
 	conf *Config
 )
 
+// DefaultConfig is default configuration
+var DefaultConfig = &Config{
+	Format:      "string",
+	AccessLog:   "stdout",
+	AccessLevel: "info",
+	ErrorLog:    "stderr",
+	ErrorLevel:  "error",
+	Agent: AgentConfig{
+		Enabled: false,
+	},
+}
+
 func init() {
 	IsTerm = isatty.IsTerminal(os.Stdout.Fd())
-	DefaultConfig = &Config{
-		Format:      "string",
-		AccessLog:   "stdout",
-		AccessLevel: "info",
-		ErrorLog:    "stderr",
-		ErrorLevel:  "error",
-		Agent: AgentConfig{
-			Enabled: false,
-		},
-	}
 }
 
 // GetLogConfig return current log config
