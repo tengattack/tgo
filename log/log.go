@@ -28,6 +28,7 @@ type AgentConfig struct {
 	AppID      string `yaml:"app_id"`
 	Host       string `yaml:"host"`
 	InstanceID string `yaml:"instance_id"`
+	Category   string `yaml:"category"`
 }
 
 var (
@@ -153,13 +154,16 @@ func SetLogOut(log *logrus.Logger, outString string) error {
 		if err != nil {
 			return err
 		}
+		fields := logrus.Fields{
+			"app_id":      conf.Agent.AppID,
+			"host":        conf.Agent.Host,
+			"instance_id": conf.Agent.InstanceID,
+		}
+		if conf.Agent.Category != "" {
+			fields["category"] = conf.Agent.Category
+		}
 		hook := logrusagent.New(
-			conn, logrusagent.DefaultFormatter(
-				logrus.Fields{
-					"app_id":      conf.Agent.AppID,
-					"host":        conf.Agent.Host,
-					"instance_id": conf.Agent.InstanceID,
-				}))
+			conn, logrusagent.DefaultFormatter(fields))
 		log.Hooks.Add(hook)
 	}
 
