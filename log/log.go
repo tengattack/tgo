@@ -72,24 +72,22 @@ func InitLog(logConf *Config) error {
 	} else {
 		conf = DefaultConfig
 	}
-	if conf.Agent.Enabled {
-		// get default host and instance id from environment variables or hostname
-		if conf.Agent.Host == "" || conf.Agent.InstanceID == "" {
-			hostname, _ := os.Hostname()
-			if conf.Agent.Host == "" {
-				host := os.Getenv("HOST")
-				if host == "" {
-					host = hostname
-				}
-				conf.Agent.Host = host
+	// get default host and instance id from environment variables or hostname
+	if conf.Agent.Host == "" || conf.Agent.InstanceID == "" {
+		hostname, _ := os.Hostname()
+		if conf.Agent.Host == "" {
+			host := os.Getenv("HOST")
+			if host == "" {
+				host = hostname
 			}
-			if conf.Agent.InstanceID == "" {
-				instanceID := os.Getenv("INSTANCE_ID")
-				if instanceID == "" {
-					instanceID = hostname
-				}
-				conf.Agent.InstanceID = instanceID
+			conf.Agent.Host = host
+		}
+		if conf.Agent.InstanceID == "" {
+			instanceID := os.Getenv("INSTANCE_ID")
+			if instanceID == "" {
+				instanceID = hostname
 			}
+			conf.Agent.InstanceID = instanceID
 		}
 	}
 
