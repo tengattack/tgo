@@ -5,10 +5,10 @@ import (
 	"net"
 	"net/url"
 	"os"
-
-	"github.com/mattn/go-isatty"
+	
 	"github.com/sirupsen/logrus"
 	logrusagent "github.com/tengattack/logrus-agent-hook"
+	"golang.org/x/term"
 )
 
 // Config is logging config.
@@ -55,7 +55,7 @@ var DefaultConfig = &Config{
 }
 
 func init() {
-	IsTerm = isatty.IsTerminal(os.Stdout.Fd())
+	IsTerm = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 // GetLogConfig return current log config
