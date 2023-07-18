@@ -2,13 +2,13 @@ package log
 
 import (
 	"errors"
-	"net"
+	"io"
 	"net/url"
 	"os"
 
-	"github.com/mattn/go-isatty"
 	"github.com/sirupsen/logrus"
 	logrusagent "github.com/tengattack/logrus-agent-hook"
+	"golang.org/x/term"
 )
 
 // Config is logging config.
@@ -23,12 +23,17 @@ type Config struct {
 
 // AgentConfig is sub section of LogConfig.
 type AgentConfig struct {
-	Enabled    bool   `yaml:"enabled"`
-	DSN        string `yaml:"dsn"`
-	AppID      string `yaml:"app_id"`
-	Host       string `yaml:"host"`
-	InstanceID string `yaml:"instance_id"`
-	Category   string `yaml:"category"`
+	Enabled     bool   `yaml:"enabled"`
+	DSN         string `yaml:"dsn"`
+	AppID       string `yaml:"app_id"`
+	Host        string `yaml:"host"`
+	InstanceID  string `yaml:"instance_id"`
+	Category    string `yaml:"category"`
+	ChannelSize int    `yaml:"channel_size,omitempty"`
+}
+
+// EmptyFormatter output nothing
+type EmptyFormatter struct {
 }
 
 var (
@@ -55,7 +60,7 @@ var DefaultConfig = &Config{
 }
 
 func init() {
-	IsTerm = isatty.IsTerminal(os.Stdout.Fd())
+	IsTerm = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 // GetLogConfig return current log config
@@ -76,9 +81,12 @@ func InitLog(logConf *Config) error {
 	if conf.Agent.Host == "" || conf.Agent.InstanceID == "" {
 		hostname, _ := os.Hostname()
 		if conf.Agent.Host == "" {
-			host := os.Getenv("HOST")
+			host := os.Getenv("NODE_NAME")
 			if host == "" {
-				host = hostname
+				host := os.Getenv("HOST")
+				if host == "" {
+					host = hostname
+				}
 			}
 			conf.Agent.Host = host
 		}
@@ -89,6 +97,10 @@ func InitLog(logConf *Config) error {
 			}
 			conf.Agent.InstanceID = instanceID
 		}
+	}
+	// default channel size to 1024 if invalid or not set
+	if conf.Agent.ChannelSize <= 0 {
+		conf.Agent.ChannelSize = 1024
 	}
 
 	// init logger
@@ -132,6 +144,9 @@ func SetLogOut(log *logrus.Logger, outString string) error {
 		log.Out = os.Stdout
 	case "stderr":
 		log.Out = os.Stderr
+	case "":
+		log.Out = io.Discard
+		log.Formatter = NewEmptyFormatter()
 	default:
 		f, err := os.OpenFile(outString, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 
@@ -144,14 +159,13 @@ func SetLogOut(log *logrus.Logger, outString string) error {
 
 	if conf != nil && conf.Agent.Enabled {
 		// configure log agent (logstash) hook
-		u, err := url.Parse(conf.Agent.DSN)
+		_, err := url.Parse(conf.Agent.DSN)
 		if err != nil {
 			return err
 		}
-		conn, err := net.Dial(u.Scheme, u.Host)
-		if err != nil {
-			return err
-		}
+		var opt logrusagent.Options
+		opt.ChannelSize = conf.Agent.ChannelSize
+
 		fields := logrus.Fields{
 			"app_id":      conf.Agent.AppID,
 			"host":        conf.Agent.Host,
@@ -160,8 +174,8 @@ func SetLogOut(log *logrus.Logger, outString string) error {
 		if conf.Agent.Category != "" {
 			fields["category"] = conf.Agent.Category
 		}
-		hook := logrusagent.New(
-			conn, logrusagent.DefaultFormatter(fields))
+		hook, _ := logrusagent.New(
+			conf.Agent.DSN, logrusagent.DefaultFormatter(fields), opt)
 		log.Hooks.Add(hook)
 	}
 
@@ -180,4 +194,14 @@ func SetLogLevel(log *logrus.Logger, levelString string) error {
 	log.Level = level
 
 	return nil
+}
+
+// NewEmptyFormatter return the log format for output nothing
+func NewEmptyFormatter() *EmptyFormatter {
+	return &EmptyFormatter{}
+}
+
+// Format renders a single log entry
+func (f *EmptyFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	return nil, nil
 }
