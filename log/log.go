@@ -83,7 +83,7 @@ func InitLog(logConf *Config) error {
 		if conf.Agent.Host == "" {
 			host := os.Getenv("NODE_NAME")
 			if host == "" {
-				host := os.Getenv("HOST")
+				host = os.Getenv("HOST")
 				if host == "" {
 					host = hostname
 				}
