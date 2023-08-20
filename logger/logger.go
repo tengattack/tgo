@@ -2,10 +2,13 @@ package logger
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"runtime"
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	logrusagent "github.com/tengattack/logrus-agent-hook"
 	"github.com/tengattack/tgo/log"
 )
 
@@ -44,6 +47,33 @@ func InitLog(projectName string, logConf *log.Config) error {
 	}
 	if logConf.ErrorLog != "" {
 		LogError.SetFormatter(logFileFormatter)
+	}
+
+	// configure logstash
+	LogAccess.ReplaceHooks(make(logrus.LevelHooks))
+	LogError.ReplaceHooks(make(logrus.LevelHooks))
+	if conf != nil && conf.Agent.Enabled {
+		_, err := url.Parse(conf.Agent.DSN)
+		if err != nil {
+			return fmt.Errorf("parse dsn error: %v", err)
+		}
+
+		var opt logrusagent.Options
+		opt.ChannelSize = conf.Agent.ChannelSize
+
+		fields := logrus.Fields{
+			"app_id":      conf.Agent.AppID,
+			"host":        conf.Agent.Host,
+			"instance_id": conf.Agent.InstanceID,
+		}
+		if conf.Agent.Category != "" {
+			fields["category"] = conf.Agent.Category
+		}
+
+		agentFormatter := NewLogstashFormatter(fields)
+		hook, _ := logrusagent.New(conf.Agent.DSN, agentFormatter, opt)
+		LogAccess.Hooks.Add(hook)
+		LogError.Hooks.Add(hook)
 	}
 	return nil
 }
